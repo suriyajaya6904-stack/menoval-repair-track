@@ -12,6 +12,8 @@ export default function Login() {
   const [shopName, setShopName] = useState('');
   const [businessType, setBusinessType] = useState('repair');
   const [businessTypes, setBusinessTypes] = useState([]);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { login, register } = useAuth();
   const navigate = useNavigate();
@@ -25,6 +27,20 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (isRegister) {
+      if (password !== confirmPassword) {
+        const toast = (await import('react-hot-toast')).default;
+        toast.error('Passwords do not match');
+        return;
+      }
+      if (!termsAccepted) {
+        const toast = (await import('react-hot-toast')).default;
+        toast.error('Please accept the Terms & Services');
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     let result;
@@ -107,7 +123,30 @@ export default function Login() {
               minLength={isRegister ? 6 : undefined} />
           </div>
 
-          <button type="submit" className="btn-primary w-full mt-6" disabled={isSubmitting}>
+          {isRegister && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-text-muted mb-1">Confirm Password</label>
+                <input type="password" required className="input-field" value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••"
+                  minLength={6} />
+                {confirmPassword && password !== confirmPassword && (
+                  <p className="text-xs text-accent-red mt-1 ml-1">Passwords do not match</p>
+                )}
+              </div>
+
+              <label className="flex items-start gap-3 cursor-pointer mt-2">
+                <input type="checkbox" checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-surface-border accent-accent-green" />
+                <span className="text-xs text-text-muted leading-relaxed">
+                  I agree to the <a href="#" className="text-accent-green hover:underline">Terms of Service</a> and <a href="#" className="text-accent-green hover:underline">Privacy Policy</a>
+                </span>
+              </label>
+            </>
+          )}
+
+          <button type="submit" className="btn-primary w-full mt-6" disabled={isSubmitting || (isRegister && !termsAccepted)}>
             {isSubmitting ? 'Processing...' : isRegister ? 'Create Shop & Start Free Trial' : 'Login'}
           </button>
         </form>
