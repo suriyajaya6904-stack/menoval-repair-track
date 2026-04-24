@@ -2,6 +2,7 @@ const Shop = require('../models/Shop');
 const Subscription = require('../models/Subscription');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const { getAllBusinessTypes } = require('../config/businessTypeRegistry');
 
 // Helper to check for ADMIN_SECRET_KEY
 const getAdminSecret = () => process.env.ADMIN_SECRET_KEY || 'default_super_secret_for_dev_only';
@@ -44,10 +45,16 @@ const loginAdmin = async (req, res) => {
 // @access  Private (Admin)
 const createShop = async (req, res) => {
   try {
-    const { name, email, password, shopName, trialDays = 7 } = req.body;
+    const { name, email, password, shopName, businessType = 'repair', trialDays = 7 } = req.body;
 
     if (!name || !email || !password || !shopName) {
       return res.status(400).json({ error: 'Please provide all required fields' });
+    }
+
+    // Validate businessType against registry
+    const validTypes = getAllBusinessTypes().map(t => t.key);
+    if (!validTypes.includes(businessType)) {
+      return res.status(400).json({ error: `Invalid business type. Must be one of: ${validTypes.join(', ')}` });
     }
 
     const existingUser = await Shop.findOne({ email });
@@ -62,6 +69,7 @@ const createShop = async (req, res) => {
       ownerName: name,
       email,
       shopName,
+      businessType,
       password: hashedPassword,
       isActive: true
     });
@@ -89,7 +97,8 @@ const createShop = async (req, res) => {
         _id: newShop._id,
         name: newShop.ownerName,
         email: newShop.email,
-        shopName: newShop.shopName
+        shopName: newShop.shopName,
+        businessType: newShop.businessType
       },
       subscription
     });

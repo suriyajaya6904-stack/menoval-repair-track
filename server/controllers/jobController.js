@@ -1,44 +1,66 @@
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 const Job = require('../models/Job');
 const Shop = require('../models/Shop');
 const Customer = require('../models/Customer');
 const ActivityLog = require('../models/ActivityLog');
-const { getMessageForStatus } = require('../services/messageTemplates');
+const { renderTemplate, getStatusKeyFromLabel, getInitialStatus, getTerminalStatuses, isValidStatus, getConfig } = require('../config/businessTypeRegistry');
 const { sendMessage } = require('../services/whatsappService');
 
-// Generate unique Job ID (e.g., JOB-2025-0047)
-const generateJobId = async () => {
-  const date = new Date();
-  const year = date.getFullYear();
-  
-  // Find latest job to increment counter
-  const latestJob = await Job.findOne().select('jobId').sort({ createdAt: -1 });
+// ── Generate unique Job ID using business-type prefix ──
+// e.g. RPR-2026-0047 for repair, LDR-2026-0012 for laundry
+const generateJobId = async (prefix = 'JOB') => {
+  const year = new Date().getFullYear();
+  const pattern = `${prefix}-${year}-`;
+
+  // Find latest job with this prefix for counter increment
+  const latestJob = await Job.findOne({ jobId: { $regex: `^${pattern}` } })
+    .select('jobId')
+    .sort({ createdAt: -1 })
+    .lean(); // lean() for performance — no Mongoose document overhead
+
   let counter = 1;
-  
-  if (latestJob && latestJob.jobId && latestJob.jobId.includes(year)) {
+  if (latestJob && latestJob.jobId) {
     const parts = latestJob.jobId.split('-');
     if (parts.length === 3) {
       counter = parseInt(parts[2], 10) + 1;
     }
   }
-  
-  return `JOB-${year}-${counter.toString().padStart(4, '0')}`;
+
+  return `${pattern}${counter.toString().padStart(4, '0')}`;
 };
 
 const createJob = async (req, res) => {
   try {
     const shopOwnerId = req.user.id;
-    const { 
-      customerInfo, // { name, phone } 
-      deviceType, brand, model, color, identifier, 
-      reportedIssue, deviceCondition, estimatedCost, estimatedDelivery 
-    } = req.body;
 
-    if (!customerInfo.name || !customerInfo.phone || !deviceType || !brand || !model) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    // Fetch shop with businessType in one lean query
+    const shop = await Shop.findById(shopOwnerId)
+      .select('shopName businessType whatsappConnected _id')
+      .lean();
+
+    if (!shop) return res.status(404).json({ error: 'Shop not found' });
+
+    const config = getConfig(shop.businessType);
+    const initialStatus = getInitialStatus(shop.businessType);
+
+    const { customerInfo, itemDetails, description, tags, estimatedCost, estimatedDelivery } = req.body;
+
+    // Validate customer info
+    if (!customerInfo || !customerInfo.name || !customerInfo.phone) {
+      return res.status(400).json({ error: 'Customer name and phone are required' });
     }
 
-    // 1. Handle Customer (Find existing or Create new)
+    // Validate required fields from config
+    if (config && config.fields) {
+      for (const field of config.fields) {
+        if (field.required && (!itemDetails || !itemDetails[field.key])) {
+          return res.status(400).json({ error: `${field.label} is required` });
+        }
+      }
+    }
+
+    // 1. Handle Customer (Find existing or Create new) — lean findOne
     let customer = await Customer.findOne({ phone: customerInfo.phone, shopOwnerId }).select('_id name phone');
     if (!customer) {
       customer = await Customer.create({
@@ -48,73 +70,85 @@ const createJob = async (req, res) => {
       });
     }
 
-    // 2. Generate Job ID
-    const jobId = await generateJobId();
+    // 2. Generate Job ID with business-type prefix
+    const prefix = config?.terminology?.jobIdPrefix || 'JOB';
+    const jobId = await generateJobId(prefix);
 
-    // 3. Create Job
-    const job = new Job({
+    // 3. Build job document
+    const jobData = {
       jobId,
       customer: customer._id,
       shopOwnerId,
-      deviceType,
-      brand,
-      model,
-      color,
-      identifier,
-      reportedIssue,
-      deviceCondition,
-      estimatedCost,
-      estimatedDelivery,
-      status: 'Received',
-      statusHistory: [{ status: 'Received' }]
-    });
+      businessType: shop.businessType,
+      itemDetails: itemDetails || {},
+      description: description || '',
+      tags: tags || [],
+      estimatedCost: estimatedCost ? Number(estimatedCost) : 0,
+      estimatedDelivery: estimatedDelivery || null,
+      status: initialStatus.label,
+      statusHistory: [{ status: initialStatus.label }],
+      trackingToken: crypto.randomBytes(16).toString('hex')
+    };
 
+    // Backward-compat: populate legacy repair fields if repair type
+    if (shop.businessType === 'repair' && itemDetails) {
+      jobData.deviceType = itemDetails.deviceType;
+      jobData.brand = itemDetails.brand;
+      jobData.model = itemDetails.model;
+      jobData.color = itemDetails.color || '';
+      jobData.identifier = itemDetails.identifier || '';
+      jobData.repairCategory = itemDetails.repairCategory || '';
+      jobData.reportedIssue = itemDetails.reportedIssue || [];
+      jobData.deviceCondition = itemDetails.deviceCondition || '';
+      jobData.internalNotes = '';
+    }
+
+    const job = new Job(jobData);
     await job.save();
 
-    // Log creation to ActivityLog
+    // Log creation
     await ActivityLog.create({
       jobId: job._id,
       shopId: shopOwnerId,
-      toStatus: 'Received',
+      toStatus: initialStatus.label,
       changedBy: 'shop_owner',
-      note: 'Job created'
+      note: `${config?.terminology?.job || 'Job'} created`
     });
 
-    // 4. Fetch the shop owner to pass the shopName to the notification service
-    const shopOwner = await Shop.findById(shopOwnerId).select('shopName whatsappConnected _id');
-    
-    // 5. Populate customer data for the notification service and trigger the WhatsApp message
+    // Populate customer for response + notification
     await job.populate('customer');
-    
-    // Respond IMMEDIATELY — send WhatsApp in background (fire-and-forget)
+
+    // Respond IMMEDIATELY
     res.status(201).json({ job, notificationSent: false });
 
-    // Background: send WhatsApp notification (non-blocking)
-    if (shopOwner.whatsappConnected) {
+    // Background: WhatsApp notification (fire-and-forget)
+    if (shop.whatsappConnected) {
       try {
-        const messageText = getMessageForStatus('Received', {
+        const statusKey = getStatusKeyFromLabel(shop.businessType, initialStatus.label);
+        const trackingUrl = `${process.env.CLIENT_URL || 'http://localhost:5174'}/track/${job.jobId}?token=${job.trackingToken}`;
+        const messageText = renderTemplate(shop.businessType, statusKey, {
           customerName: job.customer.name,
-          deviceBrand: job.brand,
-          deviceModel: job.model,
           jobId: job.jobId,
-          shopName: shopOwner.shopName,
-          date: new Date().toLocaleDateString()
+          shopName: shop.shopName,
+          date: new Date().toLocaleDateString(),
+          amount: job.estimatedCost || 0,
+          itemDetails: job.itemDetails,
+          trackingUrl
         });
-        
+
         if (messageText) {
           sendMessage(
-            shopOwner._id, 
-            job.customer.phone, 
+            shop._id,
+            job.customer.phone,
             messageText,
             job._id,
             job.customer.name,
-            'status_change:Received'
+            `status_change:${initialStatus.label}`
           ).then(() => {
             ActivityLog.findOneAndUpdate(
-              { jobId: job._id, toStatus: 'Received' },
+              { jobId: job._id, toStatus: initialStatus.label },
               { whatsappSent: true }
             ).catch(e => console.error('ActivityLog update failed:', e));
-            console.log(`[WhatsApp] Received notification sent for ${job.jobId}`);
           }).catch(err => {
             console.error('Initial WhatsApp notification failed:', err.message);
           });
@@ -125,42 +159,46 @@ const createJob = async (req, res) => {
     }
   } catch (error) {
     console.error('Create Job Error:', error);
-    res.status(500).json({ error: 'Failed to create repair job' });
+    res.status(500).json({ error: 'Failed to create job' });
   }
 };
 
 const getJobs = async (req, res) => {
   try {
     const { status, search } = req.query;
-    
-    let query = { shopOwnerId: req.user.id };
-    
-    if (status) {
-      query.status = status;
-    }
 
-    // Add search logic if provided
-    let jobsQuery = Job.find(query)
+    let query = { shopOwnerId: req.user.id };
+    if (status) query.status = status;
+
+    // Uses compound index: shopOwnerId + businessType + status + updatedAt
+    let jobs = await Job.find(query)
       .populate('customer', 'name phone')
-      .sort({ updatedAt: -1 });
-      
-    const jobs = await jobsQuery;
-    
-    // Client-side filtering for populated customer fields if search is provided
-    let filteredJobs = jobs;
+      .sort({ updatedAt: -1 })
+      .lean(); // lean for read performance
+
+    // Client-side filtering for search (populated fields can't be indexed)
     if (search) {
       const s = search.toLowerCase();
-      filteredJobs = jobs.filter(j => 
-        j.jobId.toLowerCase().includes(s) || 
-        j.deviceType.toLowerCase().includes(s) ||
-        j.brand.toLowerCase().includes(s) ||
-        j.model.toLowerCase().includes(s) ||
-        (j.customer && j.customer.name.toLowerCase().includes(s)) ||
-        (j.customer && j.customer.phone.includes(s))
-      );
+      jobs = jobs.filter(j => {
+        // Search in jobId, customer name/phone
+        if (j.jobId.toLowerCase().includes(s)) return true;
+        if (j.customer && j.customer.name.toLowerCase().includes(s)) return true;
+        if (j.customer && j.customer.phone.includes(s)) return true;
+        // Search in itemDetails (flatten string values)
+        if (j.itemDetails) {
+          const vals = Object.values(j.itemDetails);
+          for (const v of vals) {
+            if (typeof v === 'string' && v.toLowerCase().includes(s)) return true;
+          }
+        }
+        // Legacy repair fields
+        if (j.brand && j.brand.toLowerCase().includes(s)) return true;
+        if (j.model && j.model.toLowerCase().includes(s)) return true;
+        return false;
+      });
     }
 
-    res.status(200).json(filteredJobs);
+    res.status(200).json(jobs);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch jobs' });
   }
@@ -170,9 +208,9 @@ const getJobById = async (req, res) => {
   try {
     const job = await Job.findOne({ _id: req.params.id, shopOwnerId: req.user.id })
       .populate('customer');
-      
+
     if (!job) return res.status(404).json({ error: 'Job not found' });
-    
+
     res.status(200).json(job);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch job details' });
@@ -191,43 +229,51 @@ const updateJobStatus = async (req, res) => {
       return res.status(400).json({ error: 'Job is already in this status' });
     }
 
-    const previousStatus = job.status;
-    const shopOwner = await Shop.findById(req.user.id).select('shopName whatsappConnected _id');
+    // Validate status against business type config
+    const businessType = job.businessType || 'repair';
+    if (!isValidStatus(businessType, status)) {
+      return res.status(400).json({ error: `Invalid status "${status}" for business type "${businessType}"` });
+    }
 
-    // Update status and history in DB FIRST (fast)
+    const previousStatus = job.status;
+    const shop = await Shop.findById(req.user.id).select('shopName businessType whatsappConnected _id').lean();
+
+    // Update status
     job.status = status;
     job.statusHistory.push({ status });
     await job.save();
 
-    // Log to ActivityLog
+    // Log
     await ActivityLog.create({
       jobId: job._id,
-      shopId: shopOwner._id,
+      shopId: shop._id,
       fromStatus: previousStatus,
       toStatus: status,
       changedBy: 'shop_owner',
-      whatsappSent: false  // Will be updated in background
+      whatsappSent: false
     });
 
-    // Respond IMMEDIATELY — don't make the user wait for WhatsApp
+    // Respond immediately
     res.status(200).json(job);
 
-    // Background: send WhatsApp notification (fire-and-forget, non-blocking)
-    if (shopOwner.whatsappConnected) {
+    // Background: WhatsApp notification
+    if (shop.whatsappConnected) {
       try {
-        const messageText = getMessageForStatus(status, {
+        const statusKey = getStatusKeyFromLabel(businessType, status);
+        const trackingUrl = `${process.env.CLIENT_URL || 'http://localhost:5174'}/track/${job.jobId}?token=${job.trackingToken}`;
+        const messageText = renderTemplate(businessType, statusKey, {
           customerName: job.customer.name,
-          deviceBrand: job.brand,
-          deviceModel: job.model,
           jobId: job.jobId,
-          shopName: shopOwner.shopName,
-          amount: job.finalCost || job.estimatedCost || 0
+          shopName: shop.shopName,
+          amount: job.finalCost || job.estimatedCost || 0,
+          itemDetails: job.itemDetails,
+          trackingUrl
         });
-        
+
         if (messageText) {
           sendMessage(
-            shopOwner._id, 
-            job.customer.phone, 
+            shop._id,
+            job.customer.phone,
             messageText,
             job._id,
             job.customer.name,
@@ -237,7 +283,6 @@ const updateJobStatus = async (req, res) => {
               { jobId: job._id, toStatus: status },
               { whatsappSent: true }
             ).catch(e => console.error('ActivityLog update failed:', e));
-            console.log(`[WhatsApp] ${status} notification sent for ${job.jobId}`);
           }).catch(err => {
             console.error(`[WhatsApp] ${status} notification FAILED for ${job.jobId}:`, err.message);
           });
@@ -255,9 +300,9 @@ const updateJobStatus = async (req, res) => {
 const updateJobDetails = async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body; // technicianNotes, finalCost, paymentStatus, etc.
+    const updates = req.body;
 
-    // Prevent bypassing status update logic here
+    // Prevent bypassing status update logic
     if (updates.status) delete updates.status;
 
     const job = await Job.findOneAndUpdate(
@@ -277,34 +322,40 @@ const updateJobDetails = async (req, res) => {
 const getDashboardStats = async (req, res) => {
   try {
     const shopOwnerId = req.user.id;
-    
-    const activeJobsCount = await Job.countDocuments({ 
-      shopOwnerId, 
-      status: { $nin: ['Delivered / Closed', 'Cannot be Repaired'] } 
+
+    // Get shop's business type for dynamic terminal statuses
+    const shop = await Shop.findById(shopOwnerId).select('businessType').lean();
+    const businessType = shop?.businessType || 'repair';
+    const terminalStatuses = getTerminalStatuses(businessType);
+
+    // Active jobs = not in terminal statuses
+    const activeJobsCount = await Job.countDocuments({
+      shopOwnerId,
+      status: { $nin: terminalStatuses }
     });
-    
-    // Jobs by status breakdown for active jobs
+
+    // Status breakdown for active jobs — uses compound index
     const statusBreakdown = await Job.aggregate([
-      { $match: { shopOwnerId: new mongoose.Types.ObjectId(shopOwnerId), status: { $nin: ['Delivered / Closed', 'Cannot be Repaired'] } } },
+      { $match: { shopOwnerId: new mongoose.Types.ObjectId(shopOwnerId), status: { $nin: terminalStatuses } } },
       { $group: { _id: '$status', count: { $sum: 1 } } }
     ]);
-    
-    // Format breakdown safely
+
     const breakdownObj = {};
     statusBreakdown.forEach(item => breakdownObj[item._id] = item.count);
 
     const today = new Date();
-    today.setHours(0,0,0,0);
-    
+    today.setHours(0, 0, 0, 0);
+
+    // Completed today = terminal status updated today
     const completedTodayCount = await Job.countDocuments({
       shopOwnerId,
-      status: 'Delivered / Closed',
+      status: { $in: terminalStatuses },
       updatedAt: { $gte: today }
     });
-    
-    // Revenue calculated by summing finalCost of delivered jobs
+
+    // Revenue from paid terminal jobs
     const revenueCalc = await Job.aggregate([
-      { $match: { shopOwnerId: new mongoose.Types.ObjectId(shopOwnerId), status: 'Delivered / Closed', paymentStatus: 'Paid' } },
+      { $match: { shopOwnerId: new mongoose.Types.ObjectId(shopOwnerId), status: { $in: terminalStatuses }, paymentStatus: 'Paid' } },
       { $group: { _id: null, total: { $sum: '$finalCost' } } }
     ]);
     const totalRevenue = revenueCalc.length > 0 ? revenueCalc[0].total : 0;
@@ -321,7 +372,7 @@ const getDashboardStats = async (req, res) => {
   }
 };
 
-module.exports = { 
-  createJob, getJobs, getJobById, 
-  updateJobStatus, updateJobDetails, getDashboardStats 
+module.exports = {
+  createJob, getJobs, getJobById,
+  updateJobStatus, updateJobDetails, getDashboardStats
 };

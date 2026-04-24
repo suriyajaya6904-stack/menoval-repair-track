@@ -12,12 +12,14 @@ const Subscription = require('./models/Subscription');
 const args = process.argv.slice(2);
 
 if (args.length < 4) {
-  console.log('Usage: node create_shop.js <shopName> <ownerName> <email> <password> [trialDays]');
-  console.log('Example: node create_shop.js "My Repair Shop" "John Doe" "john@example.com" "securepassword123" 14');
+  console.log('Usage: node create_shop.js <shopName> <ownerName> <email> <password> [businessType] [trialDays]');
+  console.log('Example: node create_shop.js "My Repair Shop" "John Doe" "john@example.com" "securepassword123" repair 14');
+  console.log('Business types: repair, laundry, automotive, appliance, tailoring, printing, furniture, home_maintenance, diagnostic_lab, cleaning, rental');
   process.exit(1);
 }
 
-const [shopName, ownerName, email, password, trialDaysInput] = args;
+const [shopName, ownerName, email, password, businessTypeInput, trialDaysInput] = args;
+const businessType = businessTypeInput || 'repair';
 const trialDays = trialDaysInput ? parseInt(trialDaysInput) : 7;
 
 const createShop = async () => {
@@ -28,7 +30,7 @@ const createShop = async () => {
     // Check if user already exists
     const existingShop = await Shop.findOne({ email });
     if (existingShop) {
-      console.log('❌ A shop with this email already exists.');
+      console.log(' A shop with this email already exists.');
       process.exit(1);
     }
 
@@ -43,6 +45,7 @@ const createShop = async () => {
       ownerName,
       email,
       shopName,
+      businessType,
       password: hashedPassword,
       isActive: true
     });
@@ -68,7 +71,7 @@ const createShop = async () => {
     newShop.subscription = subscription._id;
     await newShop.save();
 
-    console.log('✅ Shop created successfully!');
+    console.log(' Shop created successfully!');
     console.log('-----------------------------------');
     console.log(`Shop ID: ${newShop._id}`);
     console.log(`Email:   ${email}`);
@@ -79,7 +82,7 @@ const createShop = async () => {
     process.exit(0);
 
   } catch (err) {
-    console.error('❌ Error creating shop:', err.message);
+    console.error(' Error creating shop:', err.message);
     process.exit(1);
   }
 };

@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import { MessageSquare, Smartphone, BarChart3, RefreshCw, Check, ChevronRight, Zap, Shield, Clock, Phone, Mail, ArrowRight, Sparkles, Send, Star, Wrench, CheckCircle2, Bell, Lightbulb, Rocket, Heart, Settings, CircleDot } from 'lucide-react';
 import './landing.css';
 
-/* ── WhatsApp redirect URL ───────────────────────────────────── */
-const WA_TRIAL_URL = 'https://wa.me/918807948403?text=' + encodeURIComponent(
-  'Hi! I\'m interested in RepairTrack. I\'d like to start a free trial for my repair shop.'
+/* ── WhatsApp URL (only for renewal/contact) ─────────────────── */
+const WA_RENEWAL_URL = 'https://wa.me/918807948403?text=' + encodeURIComponent(
+  'Hi! I\'d like to renew my RepairTrack subscription.'
 );
 
 /* ── Scroll reveal hook ──────────────────────────────────────── */
@@ -109,9 +109,9 @@ export default function LandingPage() {
             <Link to="/login" className="text-sm font-semibold px-4 py-2.5 rounded-xl hover:text-white transition-colors" style={{ color: '#A0B3C6' }}>
               Login
             </Link>
-            <a href={WA_TRIAL_URL} target="_blank" rel="noopener noreferrer" className="landing-btn-primary !py-2.5 !px-5 !text-sm">
+            <Link to="/login" className="landing-btn-primary !py-2.5 !px-5 !text-sm">
               Start Free Trial
-            </a>
+            </Link>
           </div>
         </div>
       </nav>
@@ -138,20 +138,20 @@ export default function LandingPage() {
             <div ref={useReveal()} className="landing-fade-left">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold mb-6 landing-badge-glow" style={{ background: 'rgba(38,198,102,0.1)', color: '#26C666', border: '1px solid rgba(38,198,102,0.25)' }}>
                 <Sparkles className="w-4 h-4" />
-                Built for Repair Shops in India
+                Built for Service Businesses in India
               </div>
               <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-extrabold leading-[1.1] mb-6 tracking-tight">
-                Notify customers<br />
-                <span className="landing-gradient-text landing-text-shimmer">instantly.</span>
+                Automate your<br />
+                <span className="landing-gradient-text landing-text-shimmer">customer updates.</span>
               </h1>
               <p className="text-lg md:text-xl mb-8 leading-relaxed max-w-lg" style={{ color: '#A0B3C6' }}>
-                Automatic WhatsApp updates for repair shops.<br className="hidden sm:block" />
-                No more <em>"Is my phone ready?"</em> calls.
+                WhatsApp notifications for Repair Shops, Laundry, Automotive, Tailoring & 10+ business types.<br className="hidden sm:block" />
+                No more <em>"What's the status?"</em> calls.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <a href={WA_TRIAL_URL} target="_blank" rel="noopener noreferrer" className="landing-btn-primary text-center">
+                <Link to="/login" className="landing-btn-primary text-center">
                   <Zap className="w-5 h-5" /> Start Free Trial
-                </a>
+                </Link>
                 <a href="#how-it-works" className="landing-btn-secondary text-center">
                   See How It Works <ChevronRight className="w-4 h-4" />
                 </a>
@@ -161,7 +161,7 @@ export default function LandingPage() {
               <div className="flex gap-8 mt-12 pt-8" style={{ borderTop: '1px solid #1E3A5F' }}>
                 {[
                   { end: 500, suffix: '+', label: 'Messages/Day', icon: Send },
-                  { end: 99, suffix: '%', label: 'Uptime', icon: Shield },
+                  { end: 11, suffix: '+', label: 'Business Types', icon: Shield },
                   { end: 30, suffix: 's', label: 'Setup Time', icon: Zap },
                 ].map((s, i) => (
                   <div key={i}>
@@ -286,7 +286,7 @@ export default function LandingPage() {
         <div className="landing-ticker">
           {Array.from({ length: 2 }).map((_, loop) => (
             <div key={loop} className="landing-ticker-track">
-              {['500+ Messages Sent Daily', '99.9% Uptime', 'Instant WhatsApp Delivery', 'Trusted by Repair Shops', 'Zero Manual Work', '30 Second Setup', 'Auto Customer Notifications'].map((text, i) => (
+              {['500+ Messages Sent Daily', '11+ Business Types', 'Instant WhatsApp Delivery', 'Repair • Laundry • Automotive', 'Tailoring • Printing • Rental', 'Zero Manual Work', '30 Second Setup', 'Auto Customer Notifications'].map((text, i) => (
                 <span key={i} className="flex items-center gap-3 px-6 whitespace-nowrap text-sm font-medium" style={{ color: '#6B7C93' }}>
                   <Star className="w-3 h-3" style={{ color: '#26C666' }} /> {text}
                 </span>
@@ -304,7 +304,7 @@ export default function LandingPage() {
               Tired of constant<br /><span className="landing-gradient-text">customer calls?</span>
             </h2>
             <p className="text-lg" style={{ color: '#A0B3C6' }}>
-              Every repair shop faces the same problems. RepairTrack solves them all.
+              Every service business faces the same problems. RepairTrack solves them all.
             </p>
           </div>
 
@@ -352,9 +352,9 @@ export default function LandingPage() {
             </div>
 
             {[
-              { step: '01', title: 'Create Job', desc: 'Log the customer\'s device, issue, and estimated cost. Our intuitive interface makes it effortless — takes just 30 seconds.', icon: Smartphone, color: '#3b82f6', align: 'right' },
-              { step: '02', title: 'Update Status', desc: 'As repair progresses, change the status with one click. 9 stages from Received to Delivered. Each change triggers the next step.', icon: RefreshCw, color: '#FFB020', align: 'left' },
-              { step: '03', title: 'Customer Notified', desc: 'Your customer instantly receives a professional WhatsApp message with the status update. Zero typing, zero effort.', icon: Send, color: '#26C666', align: 'right' },
+              { step: '01', title: 'Create Job / Order', desc: 'Log customer details and service items — works for repairs, laundry, automotive, tailoring and more. Dynamic forms adapt to your business type.', icon: Smartphone, color: '#3b82f6', align: 'right' },
+              { step: '02', title: 'Update Status', desc: 'As work progresses, change the status with one click. Each business type has its own workflow stages. Each change triggers the next step.', icon: RefreshCw, color: '#FFB020', align: 'left' },
+              { step: '03', title: 'Customer Notified', desc: 'Your customer instantly receives a professional WhatsApp message with business-specific updates. Zero typing, zero effort.', icon: Send, color: '#26C666', align: 'right' },
             ].map((item, i) => (
               <div key={i} ref={useReveal(i * 200)} className={`landing-fade-up flex items-center gap-8 mb-12 md:mb-16 ${item.align === 'left' ? 'md:flex-row-reverse' : ''}`}>
                 {/* Glass Card */}
@@ -434,21 +434,21 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div ref={useReveal()} className="landing-fade-up text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-extrabold mb-4">
-              Everything you need to<br /><span className="landing-gradient-text">run your repair shop</span>
+              Everything you need to<br /><span className="landing-gradient-text">run your service business</span>
             </h2>
-            <p style={{ color: '#A0B3C6' }}>Simple tools that save hours every day.</p>
+            <p style={{ color: '#A0B3C6' }}>Works for repair shops, laundry, automotive, tailoring, and 7 more business types.</p>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: Smartphone, title: 'Job Tracking', desc: 'Track every repair from intake to delivery with unique job IDs and full history.' },
-              { icon: MessageSquare, title: 'Auto WhatsApp Updates', desc: 'Customers get instant WhatsApp messages when you update job status.' },
-              { icon: BarChart3, title: 'Simple Dashboard', desc: 'See active jobs, completed today, and revenue at a glance.' },
-              { icon: RefreshCw, title: 'Status Management', desc: '9 status stages from Received to Delivered. Each change auto-notifies.' },
-              { icon: Shield, title: 'Secure & Private', desc: 'Your data is encrypted and isolated. Each shop gets its own workspace.' },
-              { icon: Zap, title: 'Instant Setup', desc: 'Connect WhatsApp in 30 seconds with a pairing code. No QR needed.' },
-              { icon: Clock, title: 'Save 2+ Hours/Day', desc: 'No more manual messages or phone calls. Full automation.' },
-              { icon: Star, title: 'Customer Satisfaction', desc: 'Proactive updates mean happier customers and more referrals.' },
+              { icon: Smartphone, title: 'Smart Job Tracking', desc: 'Track every job from intake to delivery with unique IDs, dynamic forms, and full history per business type.' },
+              { icon: MessageSquare, title: 'Auto WhatsApp Updates', desc: 'Customers get instant WhatsApp messages with business-specific templates when status changes.' },
+              { icon: BarChart3, title: 'Live Dashboard', desc: 'See active jobs, completed today, and revenue at a glance — dynamically labeled per business.' },
+              { icon: RefreshCw, title: 'Custom Workflows', desc: 'Each business type has its own status stages. Repair, Laundry, Automotive — all different flows.' },
+              { icon: Settings, title: '11+ Business Types', desc: 'Repair, Laundry, Automotive, Appliance, Tailoring, Printing, Furniture, Home Maintenance, Lab, Cleaning, Rental.' },
+              { icon: Zap, title: 'Instant Setup', desc: 'Connect WhatsApp in 30 seconds. Choose your business type and start tracking immediately.' },
+              { icon: Clock, title: 'Save 2+ Hours/Day', desc: 'No more manual messages or phone calls. Full automation across all business types.' },
+              { icon: Star, title: 'Per-Item Pricing', desc: 'Laundry, tailoring, printing? Track individual items with auto-computed totals.' },
             ].map((item, i) => (
               <div key={i} ref={useReveal((i % 4) * 100)} className="landing-fade-up landing-card group landing-card-hover">
                 <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-all group-hover:scale-110 group-hover:rotate-6" style={{ background: 'rgba(38,198,102,0.1)', color: '#26C666' }}>
@@ -507,9 +507,9 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <a href={WA_TRIAL_URL} target="_blank" rel="noopener noreferrer" className={`${plan.popular ? 'landing-btn-primary' : 'landing-btn-secondary'} w-full justify-center text-sm`}>
+                <Link to="/login" className={`${plan.popular ? 'landing-btn-primary' : 'landing-btn-secondary'} w-full justify-center text-sm`}>
                   {plan.popular ? 'Start Free Trial' : 'Get Started'}
-                </a>
+                </Link>
               </div>
             ))}
           </div>
@@ -529,10 +529,10 @@ export default function LandingPage() {
             Start for just ₹199/month — less than one repair profit.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href={WA_TRIAL_URL} target="_blank" rel="noopener noreferrer" className="landing-btn-primary text-lg !py-4 !px-10">
+            <Link to="/login" className="landing-btn-primary text-lg !py-4 !px-10">
               <Zap className="w-5 h-5" /> Start Free Trial
-            </a>
-            <a href={WA_TRIAL_URL} target="_blank" rel="noopener noreferrer" className="landing-btn-secondary text-lg !py-4 !px-10">
+            </Link>
+            <a href={WA_RENEWAL_URL} target="_blank" rel="noopener noreferrer" className="landing-btn-secondary text-lg !py-4 !px-10">
               <WAIcon /> Chat With Us
             </a>
           </div>
@@ -549,7 +549,7 @@ export default function LandingPage() {
                 <span className="font-bold text-lg">Repair<span className="landing-gradient-text">Track</span></span>
               </div>
               <p className="text-sm leading-relaxed" style={{ color: '#6B7C93' }}>
-                India's smartest repair shop management platform. Automate customer updates and grow your business.
+                India's smartest service business management platform. Automate customer updates for repair shops, laundry, automotive, and 8+ more business types.
               </p>
             </div>
             <div>
@@ -564,7 +564,7 @@ export default function LandingPage() {
               <h4 className="font-bold text-sm mb-4" style={{ color: '#A0B3C6' }}>Contact</h4>
               <ul className="space-y-2.5 text-sm" style={{ color: '#6B7C93' }}>
                 <li className="flex items-center gap-2"><Phone className="w-4 h-4" style={{ color: '#26C666' }} /> +91 88079 48403</li>
-                <li className="flex items-center gap-2"><Mail className="w-4 h-4" style={{ color: '#26C666' }} /> support@menoval.com</li>
+                <li className="flex items-center gap-2"><Mail className="w-4 h-4" style={{ color: '#26C666' }} /> menoval.support@gmail.com</li>
               </ul>
             </div>
             <div>

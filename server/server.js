@@ -24,6 +24,8 @@ const whatsappRoutes = require('./routes/whatsappRoutes');
 const jobRoutes = require('./routes/jobRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const configRoutes = require('./routes/configRoutes');
+const trackingRoutes = require('./routes/trackingRoutes');
 
 const app = express();
 
@@ -44,6 +46,8 @@ app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/config', configRoutes);
+app.use('/api/track', trackingRoutes); // Public — no auth
 
 // Global Error Handler
 app.use((err, req, res, next) => {

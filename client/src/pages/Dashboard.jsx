@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useBusinessType } from '../context/BusinessTypeContext';
 import api from '../api/axios';
 import { toast } from 'react-hot-toast';
 import { Smartphone, Wrench, IndianRupee, BellRing, CheckCircle2, XCircle } from 'lucide-react';
@@ -9,6 +10,8 @@ import WhatsAppLogo from '../components/WhatsAppLogo';
 
 export default function Dashboard() {
   const { user, setUser } = useAuth();
+  const { config } = useBusinessType();
+  const terminology = config?.terminology || { jobPlural: 'Repair Jobs' };
 
   // Helper: sync WhatsApp status to both local state AND AuthContext
   const updateWhatsAppStatus = (connected) => {
@@ -165,7 +168,7 @@ export default function Dashboard() {
                <Wrench className="w-6 h-6 sm:w-7 sm:h-7" />
              </div>
              <div>
-               <p className="text-xs sm:text-sm font-medium text-text-muted mb-0.5">Active Repairs</p>
+               <p className="text-xs sm:text-sm font-medium text-text-muted mb-0.5">Active {terminology.jobPlural}</p>
                <p className="text-2xl sm:text-3xl font-bold">{stats.activeJobs}</p>
              </div>
           </div>
@@ -198,7 +201,7 @@ export default function Dashboard() {
                <CheckCircle2 className="w-6 h-6 sm:w-7 sm:h-7" />
              </div>
              <div>
-               <p className="text-xs sm:text-sm font-medium text-text-muted mb-0.5">Delivered Today</p>
+               <p className="text-xs sm:text-sm font-medium text-text-muted mb-0.5">Completed Today</p>
                <p className="text-2xl sm:text-3xl font-bold">{stats.completedToday}</p>
              </div>
           </div>

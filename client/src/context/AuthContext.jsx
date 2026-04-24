@@ -42,12 +42,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (name, email, password, shopName) => {
+  const register = async (name, email, password, shopName, businessType = 'repair') => {
     try {
-      const res = await api.post('/api/auth/register', { name, email, password, shopName });
+      const res = await api.post('/api/auth/register', { name, email, password, shopName, businessType });
       setUser(res.data.user);
       localStorage.setItem('token', res.data.token);
-      toast.success('Shop created successfully');
+      toast.success('Shop created successfully! 7-day free trial activated.');
       return { success: true };
     } catch (error) {
       const msg = error.response?.data?.error || 'Registration failed';
@@ -59,6 +59,8 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('token');
+    // Clear any cached session data to prevent stale config across user switches
+    sessionStorage.clear();
     toast.success('Logged out successfully');
   };
 

@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useBusinessType } from '../context/BusinessTypeContext';
 import { useTheme } from '../context/ThemeContext';
 import api from '../api/axios';
 import { LogOut, LayoutDashboard, Users, ClipboardList, Moon, Sun, AlertCircle, UserCircle } from 'lucide-react';
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const { config } = useBusinessType();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const terminology = config?.terminology || { jobPlural: 'Jobs' };
   const location = useLocation();
   const [subscription, setSubscription] = useState(null);
 
@@ -50,7 +53,7 @@ export default function Sidebar() {
       {/* Mobile Bottom Nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface-card border-t border-surface-border z-50 px-2 flex items-center justify-around pb-safe">
         <NavLink to="/dashboard" icon={LayoutDashboard} label="Home" />
-        <NavLink to="/jobs" icon={ClipboardList} label="Jobs" />
+        <NavLink to="/jobs" icon={ClipboardList} label={terminology.jobPlural?.split(' ').pop() || 'Jobs'} />
         <NavLink to="/customers" icon={Users} label="Clients" />
         <NavLink to="/profile" icon={UserCircle} label="Profile" />
       </nav>
@@ -81,7 +84,7 @@ export default function Sidebar() {
         {/* Navigation */}
         <div className="flex-1 py-8 px-3 lg:px-4 space-y-2 overflow-y-auto w-full">
            <NavLink to="/dashboard" icon={LayoutDashboard} label="Dashboard" />
-           <NavLink to="/jobs" icon={ClipboardList} label="Repair Jobs" />
+           <NavLink to="/jobs" icon={ClipboardList} label={terminology.jobPlural} />
            <NavLink to="/customers" icon={Users} label="Customers" />
         </div>
 

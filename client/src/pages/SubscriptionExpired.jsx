@@ -10,8 +10,8 @@ export default function SubscriptionExpired() {
   const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // You can replace this with your actual WhatsApp support number
-  const supportNumber = '919876543210'; 
+  // WhatsApp renewal support number
+  const supportNumber = '918807948403'; 
 
   useEffect(() => {
     // We intentionally don't use the standard configured axios instance to avoid 

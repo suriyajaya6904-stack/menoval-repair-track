@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { BusinessTypeProvider } from './context/BusinessTypeContext';
 
 import Sidebar from './components/Sidebar';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -13,6 +14,7 @@ import Jobs from './pages/Jobs';
 import Profile from './pages/Profile';
 import SubscriptionExpired from './pages/SubscriptionExpired';
 import LandingPage from './pages/LandingPage';
+import TrackingPage from './pages/TrackingPage';
 
 /* Inner component that has access to useLocation (inside Router) */
 function AppRoutes() {
@@ -21,10 +23,11 @@ function AppRoutes() {
 
   const isExpiredPage = location.pathname === '/subscription-expired';
   const isLandingPage = location.pathname === '/' && !user;
+  const isTrackingPage = location.pathname.startsWith('/track/');
 
   return (
     <>
-      {user && !isExpiredPage && <Sidebar />}
+      {user && !isExpiredPage && !isTrackingPage && <Sidebar />}
 
       {isLandingPage ? (
         <Routes>
@@ -35,6 +38,7 @@ function AppRoutes() {
           <div className="container mx-auto px-4 md:px-8 xl:max-w-7xl">
           <Routes>
             <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
+            <Route path="/track/:jobId" element={<TrackingPage />} />
             
             <Route element={<ProtectedRoute />}>
               <Route path="/dashboard" element={<Dashboard />} />
@@ -66,10 +70,12 @@ function AppContent() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-surface-bg text-text-primary font-sans transition-colors duration-300">
-        <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
-        <AppRoutes />
-      </div>
+      <BusinessTypeProvider>
+        <div className="min-h-screen bg-surface-bg text-text-primary font-sans transition-colors duration-300">
+          <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+          <AppRoutes />
+        </div>
+      </BusinessTypeProvider>
     </Router>
   );
 }

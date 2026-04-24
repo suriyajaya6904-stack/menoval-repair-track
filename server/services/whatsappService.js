@@ -27,7 +27,7 @@ function resetIdleTimer(userId) {
   session.lastActivity = Date.now();
   session._idleTimer = setTimeout(() => {
     if (clients[userId]?.ready) {
-      console.log(`[WhatsApp] ⏰ Session idle for 30min, closing ${userId} (auth preserved)`);
+      console.log(`[WhatsApp]  Session idle for 30min, closing ${userId} (auth preserved)`);
       try { clients[userId].sock?.end(); } catch (e) {}
       // Don't delete auth files — just free memory. Session will auto-reconnect on next send.
       if (clients[userId]?._stableTimer) clearTimeout(clients[userId]._stableTimer);
@@ -134,7 +134,7 @@ async function createSession(userId, pairingPhone = null) {
             try {
               console.log(`[WhatsApp] Requesting pairing code for ${session.pairingPhone}...`);
               const code = await sock.requestPairingCode(session.pairingPhone);
-              console.log(`[WhatsApp] ✅ Pairing code generated: ${code}`);
+              console.log(`[WhatsApp]  Pairing code generated: ${code}`);
               session.pairingCode = code;
               session.pairingCodeSent = true; // Don't request again
               session.authenticating = false;
@@ -162,7 +162,7 @@ async function createSession(userId, pairingPhone = null) {
 
       // Connected successfully
       if (connection === 'open') {
-        console.log(`[WhatsApp] ✅ CONNECTED for user ${userId}`);
+        console.log(`[WhatsApp]  CONNECTED for user ${userId}`);
         if (clients[userId]) {
           clients[userId].ready = true;
           clients[userId].authenticating = false;
@@ -225,7 +225,7 @@ async function createSession(userId, pairingPhone = null) {
 
         // 440 = conflict (another session active) — clear auth and stop
         if (statusCode === 440) {
-          console.log(`[WhatsApp] ⚠️ Conflict (440) for ${userId} — another session active. Clearing auth.`);
+          console.log(`[WhatsApp]  Conflict (440) for ${userId} — another session active. Clearing auth.`);
           const authDir = path.join(__dirname, '../.baileys_auth', `session-${userId}`);
           try { fs.rmSync(authDir, { recursive: true, force: true }); } catch (e) {}
           if (clients[userId]) {
@@ -343,9 +343,9 @@ const BANNER_PATH = path.join(__dirname, '..', 'assets', 'banner.png');
 let bannerBuffer = null;
 try {
   bannerBuffer = fs.readFileSync(BANNER_PATH);
-  console.log('[WhatsApp] ✅ Banner image loaded from', BANNER_PATH);
+  console.log('[WhatsApp]  Banner image loaded from', BANNER_PATH);
 } catch (e) {
-  console.warn('[WhatsApp] ⚠️ Banner image not found at', BANNER_PATH, '— will send text-only messages');
+  console.warn('[WhatsApp]  Banner image not found at', BANNER_PATH, '— will send text-only messages');
 }
 
 // ── Send Message ────────────────────────────────────────────────────────────
@@ -385,7 +385,7 @@ async function sendMessage(userId, phone, message, jobId = null, customerName = 
     try {
       const [result] = await session.sock.onWhatsApp(cleanPhone);
       if (!result?.exists) {
-        console.error(`[WhatsApp] ❌ ${cleanPhone} is NOT on WhatsApp`);
+        console.error(`[WhatsApp]  ${cleanPhone} is NOT on WhatsApp`);
         MessageLog.create({
           shopId: userId, jobId, customerPhone: cleanPhone, customerName,
           messageContent: message, triggerEvent, status: 'failed',
@@ -393,7 +393,7 @@ async function sendMessage(userId, phone, message, jobId = null, customerName = 
         }).catch(() => {});
         throw new Error(`${cleanPhone} is not registered on WhatsApp`);
       }
-      console.log(`[WhatsApp] ✅ ${cleanPhone} is on WhatsApp`);
+      console.log(`[WhatsApp]  ${cleanPhone} is on WhatsApp`);
     } catch (err) {
       if (err.message.includes('not registered')) throw err;
       console.warn(`[WhatsApp] Number check failed:`, err.message);
@@ -420,7 +420,7 @@ async function sendMessage(userId, phone, message, jobId = null, customerName = 
           await clients[userId].sock.sendMessage(jid, { text: message });
         }
         
-        console.log(`[WhatsApp] ✅ Sent to ${cleanPhone} on attempt ${attempt}`);
+        console.log(`[WhatsApp]  Sent to ${cleanPhone} on attempt ${attempt}`);
 
         MessageLog.create({
           shopId: userId, jobId, customerPhone: cleanPhone, customerName,
@@ -441,7 +441,7 @@ async function sendMessage(userId, phone, message, jobId = null, customerName = 
       }
     }
 
-    console.error(`[WhatsApp] ❌ All sends failed for ${cleanPhone}`);
+    console.error(`[WhatsApp]  All sends failed for ${cleanPhone}`);
     MessageLog.create({
       shopId: userId, jobId, customerPhone: cleanPhone, customerName,
       messageContent: message, triggerEvent, status: 'failed',
@@ -493,7 +493,7 @@ setInterval(() => {
   }
 
   if (cleaned > 0) {
-    console.log(`[WhatsApp] 🧹 Auto-cleanup: removed ${cleaned} orphaned entries`);
+    console.log(`[WhatsApp]  Auto-cleanup: removed ${cleaned} orphaned entries`);
   }
 }, 30 * 60 * 1000); // Every 30 minutes
 
